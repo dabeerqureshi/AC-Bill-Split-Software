@@ -124,6 +124,12 @@ h1 {
   letter-spacing: -0.01em;
 }
 
+h3 {
+  font-size: 0.95rem;
+  margin: 16px 0 6px;
+  color: var(--ink);
+}
+
 .muted {
   color: var(--ink-soft);
   font-size: 0.9rem;
@@ -147,6 +153,22 @@ input[type="text"] {
 }
 
 input[type="text"]:focus {
+  outline: 2px solid var(--teal);
+  outline-offset: 1px;
+}
+
+input[type="number"] {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-family: var(--mono);
+  font-size: 0.92rem;
+  background: var(--paper);
+  color: var(--ink);
+  width: 100%;
+}
+
+input[type="number"]:focus {
   outline: 2px solid var(--teal);
   outline-offset: 1px;
 }
@@ -188,6 +210,20 @@ button.ghost {
 
 button.ghost:hover { border-color: var(--teal); color: var(--teal); }
 
+button.small {
+  background: var(--teal);
+  color: #fff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+button.small:hover { background: var(--teal-dark); }
+
 .error {
   color: var(--red);
   font-size: 0.85rem;
@@ -200,6 +236,30 @@ button.ghost:hover { border-color: var(--teal); color: var(--teal); }
   min-height: 1.2em;
   margin: 12px 0 0;
 }
+
+/* Help panel */
+.help-panel {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-top: 14px;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.help-panel.hidden { display: none; }
+
+.help-panel h3:first-child { margin-top: 0; }
+
+.help-panel ul, .help-panel ol {
+  padding-left: 20px;
+  margin: 6px 0;
+}
+
+.help-panel li { margin-bottom: 4px; }
+
+.help-panel p { margin: 8px 0; }
 
 /* Ledger table */
 .table-wrap { max-height: 60vh; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; }
@@ -259,7 +319,7 @@ table.ledger input.dirty {
 .row-status.error { color: var(--red); }
 
 /* Receipt / bill */
-.receipt { max-width: 460px; margin: 0 auto; }
+.receipt { max-width: 520px; margin: 0 auto; }
 .receipt-head { text-align: center; margin-bottom: 10px; }
 .receipt-head h1 { text-align: center; }
 
@@ -279,7 +339,97 @@ table.ledger input.dirty {
 .receipt-table td, .receipt-table th { font-family: var(--mono); }
 .mono { font-family: var(--mono); }
 
+/* Bill config */
+.bill-config {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.config-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.config-row label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.config-row input[type="text"],
+.config-row input[type="number"] {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: 0.88rem;
+}
+
+/* Members config */
+.members-config {
+  margin: 12px 0 16px;
+}
+
+.config-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin: 0 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.member-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+  min-height: 32px;
+}
+
+.member-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--teal);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.chip-remove {
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+.chip-remove:hover { opacity: 1; }
+
+.add-member-row {
+  display: flex;
+  gap: 8px;
+}
+
+.add-member-row input[type="text"] {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: 0.88rem;
+}
+
 @media (max-width: 480px) {
   .card { padding: 20px; }
   .topbar { justify-content: center; }
+  .config-row { flex-direction: column; align-items: stretch; }
+  .config-row label { min-width: auto; }
 }

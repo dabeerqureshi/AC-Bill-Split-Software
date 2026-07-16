@@ -31,9 +31,38 @@
       <h1>Who's logging in?</h1>
       <p class="muted">Use the secret key your household gave you.</p>
       <form id="loginForm" autocomplete="off">
-        <input type="text" id="keyInput" placeholder="Secret key" autocomplete="off" spellcheck="false" required>
+        <input type="text" id="keyInput" placeholder="Your name" autocomplete="off" spellcheck="false" required>
         <button type="submit" id="loginBtn">Continue</button>
       </form>
+      <button type="button" id="helpBtn" class="ghost">How it works</button>
+      <div class="help-panel hidden" id="helpPanel">
+        <h3>What is this app?</h3>
+        <p>This tool helps split the monthly AC bill in a fair way — based entirely on how many hours each person actually stayed in the hostel.</p>
+
+        <h3>How do I log my hours?</h3>
+        <ul>
+          <li><strong>0 hours</strong> — you were away the whole day (out of the hostel)</li>
+          <li><strong>24 hours</strong> — you stayed the entire day</li>
+          <li><strong>Any number in between</strong> (e.g. 12, 8.5) — you were here for part of the day</li>
+        </ul>
+
+        <h3>How is the bill split?</h3>
+        <p>Here's how it works, step by step:</p>
+        <ol>
+          <li>Everyone's daily hours are added up to get their <strong>total monthly hours</strong>.</li>
+          <li>All members' total hours are added together for <strong>total hostel hours</strong>.</li>
+          <li>Your share of the bill = <strong>(Your hours ÷ Everyone's total hours) × Total AC bill</strong></li>
+        </ol>
+
+        <h3>Example</h3>
+        <p>If you stayed 300 hours, your friend stayed 200 hours, and the total AC bill is Rs. 10,000:</p>
+        <ul>
+          <li>Total hours = 500</li>
+          <li>Your share = (300 ÷ 500) × 10,000 = <strong>Rs. 6,000</strong></li>
+          <li>Friend's share = (200 ÷ 500) × 10,000 = <strong>Rs. 4,000</strong></li>
+        </ul>
+        <p>Everyone pays only for the time they were actually in the hostel. Simple and fair.</p>
+      </div>
       <p class="error" id="loginError" hidden></p>
     </div>
   </section>
@@ -68,6 +97,34 @@
         <p class="eyebrow" id="billMonth">—</p>
         <h1>Bill Split</h1>
       </div>
+
+      <!-- Bill Configuration -->
+      <div class="bill-config">
+        <div class="config-row">
+          <label for="billMonthInput">Month</label>
+          <input type="text" id="billMonthInput" placeholder="e.g. July 2026" spellcheck="false">
+        </div>
+        <div class="config-row">
+          <label for="billTotalInput">Total AC Bill (Rs)</label>
+          <input type="number" id="billTotalInput" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div class="config-row">
+          <label for="billDaysInput">Days in Month</label>
+          <input type="number" id="billDaysInput" min="1" max="31" step="1" placeholder="30">
+        </div>
+      </div>
+
+      <!-- Members Management -->
+      <div class="members-config">
+        <p class="config-label">Members</p>
+        <div class="member-list" id="memberList"></div>
+        <div class="add-member-row">
+          <input type="text" id="memberNameInput" placeholder="Add a member by name" spellcheck="false">
+          <button id="addMemberBtn" class="small">Add</button>
+        </div>
+      </div>
+
+      <div class="dotted"></div>
       <div class="receipt-total">
         <span>Total bill</span>
         <span id="billTotal" class="mono">—</span>
@@ -75,7 +132,7 @@
       <div class="dotted"></div>
       <table class="ledger receipt-table" id="billTable">
         <thead>
-          <tr><th>Name</th><th>Hours</th><th>Share</th></tr>
+          <tr><th>Name</th><th>Hours</th><th>% Share</th><th>Bill</th></tr>
         </thead>
         <tbody id="billBody"></tbody>
       </table>

@@ -11,7 +11,15 @@ const state = {
   name: null,
   totalDays: 0,
   hours: [],        // hours[i] = hours for day i+1
-  dirty: new Set()  // set of day numbers with unsaved changes
+  dirty: new Set(), // set of day numbers with unsaved changes
+  bill: {
+    month: '',
+    totalBill: 0,
+    totalDays: 30,
+    members: []     // array of member names
+  },
+  // All members' hours data (keyed by name)
+  allHours: {}
 };
 
 /* ---------------- DOM ---------------- */
@@ -31,11 +39,19 @@ const el = {
   saveBtn: document.getElementById('saveBtn'),
 
   billMonth: document.getElementById('billMonth'),
+  billMonthInput: document.getElementById('billMonthInput'),
   billTotal: document.getElementById('billTotal'),
+  billTotalInput: document.getElementById('billTotalInput'),
+  billDaysInput: document.getElementById('billDaysInput'),
   billBody: document.getElementById('billBody'),
   billGrandHours: document.getElementById('billGrandHours'),
   billStatus: document.getElementById('billStatus'),
-  refreshBillBtn: document.getElementById('refreshBillBtn')
+  memberList: document.getElementById('memberList'),
+  memberNameInput: document.getElementById('memberNameInput'),
+  addMemberBtn: document.getElementById('addMemberBtn'),
+  refreshBillBtn: document.getElementById('refreshBillBtn'),
+  helpBtn: document.getElementById('helpBtn'),
+  helpPanel: document.getElementById('helpPanel')
 };
 
 /* ---------------- API HELPERS ---------------- */
@@ -78,6 +94,12 @@ async function apiPost(body) {
   return res.json();
 }
 
+/* ---------------- UTILITY ---------------- */
+
+function formatMoney(n) {
+  return CONFIG.CURRENCY_SYMBOL + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 /* ---------------- VIEW SWITCHING ---------------- */
 
 function showView(name) {
@@ -86,7 +108,10 @@ function showView(name) {
   document.querySelectorAll('.tab[data-view]').forEach(t => {
     t.classList.toggle('active', t.dataset.view === name);
   });
-  if (name === 'bill') loadBill();
+  if (name === 'bill') {
+    loadServerHours();
+    renderBill();
+  }
 }
 
 document.querySelectorAll('.tab[data-view]').forEach(btn => {
@@ -102,6 +127,10 @@ el.logoutBtn.addEventListener('click', () => {
   el.keyInput.value = '';
   el.loginError.hidden = true;
   showView('login');
+});
+
+el.helpBtn.addEventListener('click', () => {
+  el.helpPanel.classList.toggle('hidden');
 });
 
 /* ---------------- LOGIN ---------------- */
@@ -150,6 +179,9 @@ async function loadAttendance() {
     state.hours = res.hours.slice();
     state.dirty.clear();
     el.attGreeting.textContent = 'Hi, ' + res.name;
+    // Sync bill state totalDays from server data
+    state.bill.totalDays = res.totalDays;
+    if (el.billDaysInput) el.billDaysInput.value = res.totalDays;
     renderAttendanceTable();
     el.attStatus.textContent = '';
     el.saveBtn.disabled = true;
@@ -258,52 +290,217 @@ el.saveBtn.addEventListener('click', async () => {
     : failCount + ' day(s) failed to save — check your connection and try again.';
 });
 
-/* ---------------- BILL ---------------- */
+/* ---------------- LOAD ALL MEMBERS' HOURS FROM SERVER ---------------- */
 
-function formatMoney(n) {
-  return CONFIG.CURRENCY_SYMBOL + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-async function loadBill() {
-  el.billStatus.textContent = 'Loading…';
-  el.billBody.innerHTML = '';
-  el.billTotal.textContent = '—';
-  el.billGrandHours.textContent = '—';
+async function loadServerHours() {
   try {
     const res = await apiGet({ action: 'getBillData' });
-    if (!res.success) {
-      el.billStatus.textContent = res.error || 'Could not load bill data.';
-      return;
+    if (!res.success) return;
+    // Build allHours map
+    state.allHours = {};
+    if (res.people) {
+      res.people.forEach(p => {
+        state.allHours[p] = res.totals ? (res.totals[p] || 0) : 0;
+      });
     }
-    el.billMonth.textContent = res.month || '—';
-    el.billTotal.textContent = formatMoney(res.totalBill);
-    el.billGrandHours.textContent = res.grandTotal.toLocaleString();
-
-    if (res.grandTotal === 0) {
-      el.billStatus.textContent = 'No hours logged yet this month — shares will appear once hours are entered.';
-    } else {
-      el.billStatus.textContent = '';
+    // Populate members list from server data if not already set
+    if (res.people && state.bill.members.length === 0) {
+      state.bill.members = res.people.slice();
     }
-
-    res.people.forEach(p => {
-      const tr = document.createElement('tr');
-      const tdName = document.createElement('td');
-      tdName.textContent = p;
-      const tdHours = document.createElement('td');
-      tdHours.textContent = res.totals[p].toLocaleString();
-      const tdShare = document.createElement('td');
-      tdShare.textContent = formatMoney(res.shares[p]);
-      tr.appendChild(tdName);
-      tr.appendChild(tdHours);
-      tr.appendChild(tdShare);
-      el.billBody.appendChild(tr);
-    });
-  } catch (err) {
-    el.billStatus.textContent = err.message;
+    // Update bill state from server
+    if (res.month) state.bill.month = res.month;
+    if (res.totalBill) state.bill.totalBill = res.totalBill;
+    if (res.totalDays) state.bill.totalDays = res.totalDays;
+  } catch (e) {
+    // Silently fail — we can still work with local data
   }
 }
 
-el.refreshBillBtn.addEventListener('click', loadBill);
+/* ---------------- BILL CONFIGURATION ---------------- */
+
+// Wire up bill config inputs
+el.billMonthInput.addEventListener('input', () => {
+  state.bill.month = el.billMonthInput.value;
+  renderBill();
+});
+
+el.billTotalInput.addEventListener('input', () => {
+  const val = parseFloat(el.billTotalInput.value);
+  state.bill.totalBill = isNaN(val) ? 0 : val;
+  renderBill();
+});
+
+el.billDaysInput.addEventListener('input', () => {
+  const val = parseInt(el.billDaysInput.value, 10);
+  state.bill.totalDays = (isNaN(val) || val < 1) ? 30 : val;
+  renderBill();
+});
+
+// Add member
+el.addMemberBtn.addEventListener('click', () => {
+  const name = el.memberNameInput.value.trim();
+  if (!name) return;
+  if (state.bill.members.includes(name)) {
+    el.billStatus.textContent = 'Member "' + name + '" already exists.';
+    return;
+  }
+  state.bill.members.push(name);
+  el.memberNameInput.value = '';
+  renderBill();
+  renderMemberList();
+});
+
+el.memberNameInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    el.addMemberBtn.click();
+  }
+});
+
+function renderMemberList() {
+  el.memberList.innerHTML = '';
+  state.bill.members.forEach((name, idx) => {
+    const chip = document.createElement('span');
+    chip.className = 'member-chip';
+    chip.innerHTML = `
+      <span class="chip-name">${escapeHtml(name)}</span>
+      <span class="chip-remove" data-idx="${idx}">&times;</span>
+    `;
+    el.memberList.appendChild(chip);
+  });
+  // Wire remove buttons
+  el.memberList.querySelectorAll('.chip-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.idx, 10);
+      state.bill.members.splice(idx, 1);
+      renderMemberList();
+      renderBill();
+    });
+  });
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+/* ---------------- BILL CALCULATION ---------------- */
+
+function calculateBill() {
+  const { month, totalBill, totalDays, members } = state.bill;
+
+  // Compute total hours for each member
+  // Use server hours if available, otherwise 0
+  const memberHours = {};
+  let grandTotal = 0;
+
+  // Combine server data and local logged-in user data
+  const allData = { ...state.allHours };
+  // Override with local data if user is logged in
+  if (state.name && state.hours.length > 0) {
+    const localTotal = state.hours.reduce((sum, h) => sum + (h || 0), 0);
+    allData[state.name] = localTotal;
+  }
+
+  members.forEach(name => {
+    const hrs = allData[name] || 0;
+    memberHours[name] = hrs;
+    grandTotal += hrs;
+  });
+
+  // Calculate shares
+  const shares = {};
+  members.forEach(name => {
+    if (grandTotal === 0) {
+      shares[name] = 0;
+    } else {
+      shares[name] = (memberHours[name] / grandTotal) * totalBill;
+    }
+  });
+
+  return { month, totalBill, totalDays, members, memberHours, grandTotal, shares };
+}
+
+/* ---------------- RENDER BILL ---------------- */
+
+function renderBill() {
+  const result = calculateBill();
+  const { month, totalBill, members, memberHours, grandTotal, shares } = result;
+
+  // Month display
+  el.billMonth.textContent = month || '—';
+
+  // Total bill display
+  el.billTotal.textContent = totalBill > 0 ? formatMoney(totalBill) : '—';
+  el.billGrandHours.textContent = grandTotal > 0 ? grandTotal.toLocaleString() : '—';
+
+  // Render table
+  el.billBody.innerHTML = '';
+
+  if (members.length === 0) {
+    el.billStatus.textContent = 'Add members above to see the bill split.';
+    return;
+  }
+
+  if (grandTotal === 0) {
+    el.billStatus.textContent = 'No hours logged yet — shares will appear once hours are entered.';
+    // Still show rows with 0s
+    members.forEach(name => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml(name)}</td>
+        <td>0</td>
+        <td>0%</td>
+        <td>${formatMoney(0)}</td>
+      `;
+      el.billBody.appendChild(tr);
+    });
+    return;
+  }
+
+  members.forEach(name => {
+    const hrs = memberHours[name];
+    const pct = (hrs / grandTotal) * 100;
+    const bill = shares[name];
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(name)}</td>
+      <td>${hrs.toLocaleString()}</td>
+      <td>${pct.toFixed(2)}%</td>
+      <td>${formatMoney(bill)}</td>
+    `;
+    el.billBody.appendChild(tr);
+  });
+
+  // Validate sum of bills equals total bill
+  const sumBills = Object.values(shares).reduce((s, v) => s + v, 0);
+  const diff = Math.abs(sumBills - totalBill);
+  if (diff < 0.01) {
+    el.billStatus.textContent = '✓ All bills add up to ' + formatMoney(totalBill);
+  } else if (totalBill > 0) {
+    el.billStatus.textContent = 'Bills sum to ' + formatMoney(sumBills) + ' (target: ' + formatMoney(totalBill) + ')';
+  } else {
+    el.billStatus.textContent = '';
+  }
+}
+
+/* ---------------- REFRESH BILL ---------------- */
+
+el.refreshBillBtn.addEventListener('click', async () => {
+  await loadServerHours();
+  // Sync config inputs from server data
+  if (state.bill.month) el.billMonthInput.value = state.bill.month;
+  if (state.bill.totalBill) el.billTotalInput.value = state.bill.totalBill;
+  if (state.bill.totalDays) el.billDaysInput.value = state.bill.totalDays;
+  renderMemberList();
+  renderBill();
+});
 
 /* ---------------- INIT ---------------- */
+
+// Initialize bill days input default
+if (el.billDaysInput) el.billDaysInput.value = state.bill.totalDays;
+
 showView('login');
